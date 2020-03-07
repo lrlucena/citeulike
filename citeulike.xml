@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Module>
+  <ModulePrefs title="Search CiteULike" height="300"
+    title_url="http://www.citeulike.org/"
+    directory_title="Search CiteULike"
+    render_inline="optional" author="Leonardo Lucena"
+    author_affiliation="IFRN"
+    author_email="lrlucena.feedback+citeulike@gmail.com"
+    author_location=""
+    category="communication"
+    category2="tools"
+    description="Search academic papers posted to CiteULike."
+    screenshot="citeulike_screenshot.png"
+    thumbnail="citeulike_thumbnail.png"> 
+
+    <Require feature="dynamic-height"/>
+  </ModulePrefs>
+
+  <UserPref name="user" display_name="Default Username" default_value="" />
+  <UserPref name="tag" display_name="Default Tag" default_value="" />
+
+  <UserPref name="items" display_name="Items" default_value="3" datatype="enum">
+    <EnumValue value="3"/>
+    <EnumValue value="5"/>
+    <EnumValue value="10"/>
+    <EnumValue value="15"/>
+  </UserPref>
+
+  <UserPref name="tags" display_name="Show Tags"
+    default_value="true" datatype="bool"/>
+
+  <UserPref name="doi" display_name="Show DOI" 
+    default_value="false" datatype="bool"/>
+
+  <UserPref name="abstract" display_name="Show Abstract"
+    default_value="false" datatype="bool"/>
+
+
+  <Content type="html"><![CDATA[
+
+    <style type="text/css">
+      .user__MODULE_ID__ { font-size:80%; }
+      .papers__MODULE_ID__ { font-size:67%;text-align:right;float:right }
+      #content__MODULE_ID__ {font-size:80%;margin-top:1em;}
+      .links__MODULE_ID__ { font-size:67%; }
+      .rss__MODULE_ID__ {float:right;}
+      #library__MODULE_ID__ {margin-bottom:1em;}
+      .title__MODULE_ID__ {color:#999999;font-size:90%;margin-top:1em;}
+    </style>
+
+	<!-- HTML code -->    
+    
+    <div class="user__MODULE_ID__">
+      <form onSubmit="return false;" action="Search CiteULike">
+        user&nbsp;/&nbsp;<input id="form_user__MODULE_ID__" name="user" size="8" value="__UP_user__" /> / 
+        tag&nbsp;/&nbsp;<input id="form_tag__MODULE_ID__" name="tag" value="__UP_tag__" size="6" />
+        <input type="submit" value="Go!" onClick="search()" />
+      </form>
+    </div>
+    
+    <span class="papers__MODULE_ID__">
+      Papers:<span id="count__MODULE_ID__"></span>
+    </span>
+
+    <div class="links__MODULE_ID__">
+      <div class="rss__MODULE_ID__">
+      	<a id="rss__MODULE_ID__" target="_blank" href="http://www.citeulike.org">
+      	  <img border="0" src="http://lrlucena.googlepages.com/feed.png" />
+      	</a>
+      </div>
+      <div id="library__MODULE_ID__">
+      </div>
+    </div>
+    <div id="content__MODULE_ID__"></div>
+
+	<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+	</script>
+	
+	<script type="text/javascript">
+	  _uacct = "UA-857528-1";
+      urchinTracker();
+	</script>
+	
+	<script type="text/javascript">
+	var cul = 'http://www.citeulike.org';
+	function howMany(response, userAndTag){
+	  var pages = getPages(response);
+	  if (pages!=null && pages>10) {
+	    _gel("count__MODULE_ID__").innerHTML=">"+((pages-1)*50);
+	    _IG_FetchContent(cul+userAndTag+'?page=15', _IG_Callback(howMany15, userAndTag))
+	  } else {
+	    _gel("count__MODULE_ID__").innerHTML="~"+(pages*50-25)+"<br />";
+	    getLastPage(pages, userAndTag);
+	  }
+	}
+	
+	function howMany15(response, userAndTag){
+	  var pages = getPages(response);
+	  if (pages==null) {
+	    getLastPage(10, userAndTag);
+	  } else {
+	    if (pages<20) {
+	      _gel("count__MODULE_ID__").innerHTML="~"+(pages*50-25)+"<br />";
+	    }
+	    getLastPage(pages, userAndTag);
+	  }
+	}
+	
+	function getPages(response){
+	  var regexp = /\?page=(\d{1,2})">\1/g;
+	  var x = response.match(regexp);
+	  if (x==null) return 1;
+	  for (var i=0; i<x.length; i+=1){
+	    x[i] = eval(x[i].match(/\b\d+/));
+	  }
+	  x.sort(sortitdesc);
+	  return(x[0]);
+	}
+	
+	function sortitdesc(a,b){
+	  return(b-a)
+	}
+	
+	function getLastPage(pages, userAndTag) {
+	  _IG_FetchContent(cul+userAndTag+'?page='+pages, _IG_Callback(showHowManyPapers, pages))
+	}
+	
+	function showHowManyPapers(response, pages) {
+	  var regexp = /class="title"/g;
+	  var x = response.match(regexp);
+	  var p;
+	  if (x!=null) {
+	    p = (pages-1)*50+x.length;
+	  } else {
+	    p = 0;
+	  }
+	  if (p>=972) {
+	    p = "> 999"
+	  }
+	  _gel("count__MODULE_ID__").innerHTML= p;
+	}
+	</script>
+
+    <script type="text/javascript">
+      var prefs = new _IG_Prefs(__MODULE_ID__);    	
+      function search(){
+        var userAndTag = getUserAndTag();
+        _IG_FetchXmlContent(cul+"/rss"+userAndTag, showPapers);
+        _gel("rss__MODULE_ID__").href=cul+"/rss"+userAndTag;
+        _IG_FetchContent(cul+userAndTag+'?page=6',_IG_Callback(howMany, userAndTag));
+        showLinks(_gel("form_user__MODULE_ID__").value,_gel("form_tag__MODULE_ID__").value, false);
+        return false;
+      }
+      
+      function showLinks(user, tag, isToRead){
+        var l = new Array();
+        var order = "";
+        if (user!="" || tag!="") {
+          l = l.concat("<a href='javascript:sUserTag(\"\",\"\")'>Everyone\'s&nbsp;library</a>");		  
+        } 
+        if (user!="" && tag!="") {
+          l = l.concat("<a href='javascript:sUserTag(\"\",\""+tag+"\")'>Everyone\'s&nbsp;"+tag+"</a>");
+        }
+        
+        if(user!="" && tag==""){
+          if (isToRead){
+		      order = "order: <a href='javascript:sUserTag(\""+ user +"\",\""+ tag +"\")'>Recent</a> | to Read"		    
+		    } else {
+              order = "order: recent | <a href='javascript:sUserTagToRead(\""+ user +"\",\""+ tag +"\")'>to Read</a>"
+		    }
+		  }
+        _gel("library__MODULE_ID__").innerHTML = l.join(" | ")+"<br />"+order;
+      }
+      
+      function sUserTag(user,tag){
+        _gel("form_user__MODULE_ID__").value = user;
+        _gel("form_tag__MODULE_ID__").value = tag;
+       search();
+      }
+      
+      function sUserTagToRead(user,tag){
+        _gel("form_user__MODULE_ID__").value = user;
+        _gel("form_tag__MODULE_ID__").value = tag;
+        var userAndTag = getUserAndTag();
+        _IG_FetchXmlContent(cul+"/rss"+userAndTag+"/order/to_read", showPapers);        
+        _gel("rss__MODULE_ID__").href=cul+"/rss"+userAndTag+"/order/to_read";
+        _IG_FetchContent(cul+userAndTag+'?page=6',_IG_Callback(howMany, userAndTag));
+        showLinks(user, tag, true);
+      }
+
+    </script>
+
+    <script type="text/javascript">
+      function getUserAndTag(){
+        var user = _gel("form_user__MODULE_ID__").value;
+        if (user!="") {
+          user ="/user/" + user;
+        }
+        var tag = _gel("form_tag__MODULE_ID__").value.toLowerCase(); 
+        if (tag!=""){
+          tag ="/tag/" + tag;
+        } 
+        return user+tag;
+      }
+    </script>
+    
+    <script type="text/javascript">
+	  // Paper object
+	  function Paper(item){
+	    var au = new Array();
+	  	this.doi="";
+	  	this.Summary = "";
+	  	this.Title = "";
+	  	this.journal = "";
+	  	this.Author = "";
+	  	this.tags = new Array();
+	    for (var j = 0; j < item.length ; j++) {
+	      var node = item[j];
+	      if (node.nodeName == "title") {
+	        this.Title = node.firstChild.nodeValue;
+	      }
+	      if (node.nodeName == "link") {
+	        this.Link = node.firstChild.nodeValue;
+	        this.user = this.Link.substring(this.Link.indexOf("/user/")+6,this.Link.indexOf("/article/"));
+	      }
+	      if (node.nodeName == "description") {
+	        var p = node.firstChild.nodeValue.indexOf("<br /><br />");	        
+	        if(p>0) {
+	          this.Summary = " "+ node.firstChild.nodeValue.substring(p+12);
+	        }
+	      }
+	      if (node.nodeName == "dc:creator") {
+	        var a = node.firstChild.nodeValue.split(" ");
+	        var abr = a[a.length-1]+" ";
+	        for (var k=0; k<(a.length-1);k++){
+	          abr += a[k].substr(0,1);
+	        }
+	        au = au.concat(abr);
+	      }
+	      if (node.nodeName == "dc:identifier" && node.firstChild.nodeValue.indexOf("http:")==-1) {
+	        this.doi = node.firstChild.nodeValue.substring(4); 
+	      }
+	      if (node.nodeName == "dc:source") {
+	        this.journal = node.firstChild.nodeValue; 
+	      }
+	      if (node.nodeName == "category") {
+	        this.tags = this.tags.concat(node.firstChild.nodeValue);
+	      }
+	    }
+	    this.Author = au.join(", ");
+	  }
+	
+	  function showPapers(response){
+	    if (response == null || typeof(response) != "object" || 
+	        response.firstChild == null) {
+	      _gel("content__MODULE_ID__").innerHTML = "<i>Unknown user.</i>";
+	      return;
+        } 
+
+	    var itemList = response.getElementsByTagName("item");
+	    var html = "";
+	    for (var i = 0; i < Math.min(itemList.length, prefs.getInt("items")) ; i++) { 
+	      var item = itemList.item(i).childNodes;
+	      var e = new Paper(item);
+	      
+	      html += "<div class='title__MODULE_ID__'>"
+	           + "<a target='_blank' href='" + e.Link + "'>"
+	           + "<span title='" + e.journal + "'>" + e.Title + "</span>"
+	           + "</a>";	           
+	      
+	      html += "<br />by "+e.Author;
+	      for (var j=0; j<e.tags.length; j++){
+	        e.tags[j] = "<a href='javascript:sUserTag(\""+ e.user +"\",\""+ e.tags[j]+"\")'>"+e.tags[j]+"</a>";
+	      }
+	      
+	      if (prefs.getBool("tags")){
+	        html += "<br />tags "+e.tags.join(" ");
+	        html += " by <a href='javascript:sUserTag(\""+ e.user +"\",\"\")'>"+e.user+"</a>";
+	      }
+	      
+	      if (prefs.getBool("doi") && e.doi !="") {
+	        html += "<br />DOI:<a href='http://dx.doi.org/"+e.doi+"' target='_blank'>"+e.doi+"</a>";
+	      }
+	      
+	      if (prefs.getBool("abstract") && e.Summary != "") {
+	        html += "<br /></i>" + e.Summary.substring(0,200) + " ...</i>";
+	      }
+	      html += "</div>";
+	    }
+	    _gel("content__MODULE_ID__").innerHTML = html;
+	    _IG_AdjustIFrameHeight();
+	  }
+    </script>
+    
+    <script type="text/javascript" defer="defer">
+      function init(){
+    	showLinks(prefs.getString("user"), prefs.getString("tag"), false);
+    	var userAndTag = getUserAndTag();
+    	_IG_FetchXmlContent(cul+"/rss"+userAndTag, showPapers);
+        _gel("rss__MODULE_ID__").href=cul+"/rss"+userAndTag;
+        _IG_FetchContent(cul+userAndTag+'?page=6',_IG_Callback(howMany, userAndTag))
+      }
+    
+      init();
+	</script>
+
+  ]]></Content>
+</Module>
